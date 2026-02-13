@@ -126,6 +126,37 @@ Coordination:
 
 ---
 
+<keyword_detection>
+When the user's message contains a magic keyword, activate the corresponding skill IMMEDIATELY.
+Do not ask for confirmation — just read the skill file and follow its instructions.
+
+| Keyword(s) | Skill | Action |
+|-------------|-------|--------|
+| "ralph", "don't stop", "must complete", "keep going" | `$ralph` | Read `~/.agents/skills/ralph/SKILL.md`, execute persistence loop |
+| "autopilot", "build me", "I want a" | `$autopilot` | Read `~/.agents/skills/autopilot/SKILL.md`, execute autonomous pipeline |
+| "ultrawork", "ulw", "parallel" | `$ultrawork` | Read `~/.agents/skills/ultrawork/SKILL.md`, execute parallel agents |
+| "plan this", "plan the", "let's plan" | `$plan` | Read `~/.agents/skills/plan/SKILL.md`, start planning workflow |
+| "ralplan", "consensus plan" | `$ralplan` | Read `~/.agents/skills/ralplan/SKILL.md`, start consensus planning |
+| "team", "coordinated team" | `$team` | Read `~/.agents/skills/team/SKILL.md`, start team orchestration |
+| "pipeline", "chain agents" | `$pipeline` | Read `~/.agents/skills/pipeline/SKILL.md`, start agent pipeline |
+| "ecomode", "eco", "budget" | `$ecomode` | Read `~/.agents/skills/ecomode/SKILL.md`, enable token-efficient mode |
+| "research", "analyze data" | `$research` | Read `~/.agents/skills/research/SKILL.md`, start parallel research |
+| "deepinit" | `$deepinit` | Read `~/.agents/skills/deepinit/SKILL.md`, initialize codebase docs |
+| "cancel", "stop", "abort" | `$cancel` | Read `~/.agents/skills/cancel/SKILL.md`, cancel active modes |
+| "tdd", "test first" | `$tdd` | Read `~/.agents/skills/tdd/SKILL.md`, start test-driven workflow |
+| "fix build", "type errors" | `$build-fix` | Read `~/.agents/skills/build-fix/SKILL.md`, fix build errors |
+| "review code" | `$code-review` | Read `~/.agents/skills/code-review/SKILL.md`, run code review |
+| "security review" | `$security-review` | Read `~/.agents/skills/security-review/SKILL.md`, run security audit |
+
+Detection rules:
+- Keywords are case-insensitive and match anywhere in the user's message
+- If multiple keywords match, use the most specific (longest match)
+- Conflict resolution: explicit `$name` invocation overrides keyword detection
+- The rest of the user's message (after keyword extraction) becomes the task description
+</keyword_detection>
+
+---
+
 <skills>
 Skills are workflow commands. Invoke via `$name` (e.g., `$ralph`) or browse with `/skills`.
 
