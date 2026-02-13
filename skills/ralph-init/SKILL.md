@@ -16,7 +16,7 @@ Initialize a PRD (Product Requirements Document) for structured ralph-loop execu
 ## Behavior
 
 1. **Gather requirements** via interactive interview or from the provided description
-2. **Create PRD** at `.omc/plans/prd-{slug}.md` with:
+2. **Create PRD** at `.omx/plans/prd-{slug}.md` with:
    - Problem statement
    - Goals and non-goals
    - Acceptance criteria (testable)
@@ -26,7 +26,7 @@ Initialize a PRD (Product Requirements Document) for structured ralph-loop execu
 
 ## Output
 
-A structured PRD file saved to `.omc/plans/` that serves as the definition of done for Ralph execution.
+A structured PRD file saved to `.omx/plans/` that serves as the definition of done for Ralph execution.
 
 ## Next Steps
 

@@ -16,7 +16,7 @@ Show all local skills organized by scope.
 
 **Behavior:**
 1. Scan user skills at `~/.claude/skills/omc-learned/`
-2. Scan project skills at `.omc/skills/`
+2. Scan project skills at `.omx/skills/`
 3. Parse YAML frontmatter for metadata
 4. Display in organized table format:
 
@@ -27,7 +27,7 @@ USER SKILLS (~/.claude/skills/omc-learned/):
 | error-handler     | fix, error         | 95%     | 42    | user  |
 | api-builder       | api, endpoint      | 88%     | 23    | user  |
 
-PROJECT SKILLS (.omc/skills/):
+PROJECT SKILLS (.omx/skills/):
 | Name              | Triggers           | Quality | Usage | Scope   |
 |-------------------|--------------------|---------|-------|---------|
 | test-runner       | test, run          | 92%     | 15    | project |
@@ -52,7 +52,7 @@ Interactive wizard for creating a new skill.
    - Example: "<file> [options]"
 5. **Ask for scope:**
    - `user` → `~/.claude/skills/omc-learned/<name>/SKILL.md`
-   - `project` → `.omc/skills/<name>/SKILL.md`
+   - `project` → `.omx/skills/<name>/SKILL.md`
 6. **Create skill file** with template:
 
 ```yaml
@@ -118,7 +118,7 @@ Remove a skill by name.
 **Behavior:**
 1. **Search for skill** in both scopes:
    - `~/.claude/skills/omc-learned/<name>/SKILL.md`
-   - `.omc/skills/<name>/SKILL.md`
+   - `.omx/skills/<name>/SKILL.md`
 2. **If found:**
    - Display skill info (name, description, scope)
    - **Ask for confirmation:** "Delete '<name>' skill from <scope>? (yes/no)"
@@ -291,7 +291,7 @@ Sync skills between user and project scopes.
 **Behavior:**
 1. **Scan both scopes:**
    - User skills: `~/.claude/skills/omc-learned/`
-   - Project skills: `.omc/skills/`
+   - Project skills: `.omx/skills/`
 2. **Compare and categorize:**
    - User-only skills (not in project)
    - Project-only skills (not in user)
@@ -339,7 +339,7 @@ Assistant: Found 5 user-only skills and 2 project-only skills.
 
 Copy 'error-handler' from user to project? (yes/no/skip)
 User: yes
-Assistant: ✓ Copied 'error-handler' to .omc/skills/
+Assistant: ✓ Copied 'error-handler' to .omx/skills/
 
 Copy 'api-builder' from user to project? (yes/no/skip)
 User: skip
@@ -369,7 +369,7 @@ else
 fi
 
 # Check and create project-level skills directory
-PROJECT_SKILLS_DIR=".omc/skills"
+PROJECT_SKILLS_DIR=".omx/skills"
 if [ -d "$PROJECT_SKILLS_DIR" ]; then
   echo "Project skills directory exists: $PROJECT_SKILLS_DIR"
 else
@@ -408,15 +408,15 @@ else
 fi
 
 echo ""
-echo "=== PROJECT-LEVEL SKILLS (.omc/skills/) ==="
-if [ -d ".omc/skills" ]; then
-  PROJECT_COUNT=$(find ".omc/skills" -name "*.md" 2>/dev/null | wc -l)
+echo "=== PROJECT-LEVEL SKILLS (.omx/skills/) ==="
+if [ -d ".omx/skills" ]; then
+  PROJECT_COUNT=$(find ".omx/skills" -name "*.md" 2>/dev/null | wc -l)
   echo "Total skills: $PROJECT_COUNT"
 
   if [ $PROJECT_COUNT -gt 0 ]; then
     echo ""
     echo "Skills found:"
-    find ".omc/skills" -name "*.md" -type f -exec sh -c '
+    find ".omx/skills" -name "*.md" -type f -exec sh -c '
       FILE="$1"
       NAME=$(grep -m1 "^name:" "$FILE" 2>/dev/null | sed "s/name: //")
       DESC=$(grep -m1 "^description:" "$FILE" 2>/dev/null | sed "s/description: //")
@@ -468,7 +468,7 @@ Ask user to provide either:
 
 Then ask for scope:
 - **User-level** (~/.claude/skills/omc-learned/) - Available across all projects
-- **Project-level** (.omc/skills/) - Only for this project
+- **Project-level** (.omx/skills/) - Only for this project
 
 Validate the skill format and save to the chosen location.
 
@@ -715,7 +715,7 @@ When invoked without arguments, run the full guided wizard.
 
 **Automatic Application**: Claude detects triggers and applies skills automatically - no need to remember or search for solutions.
 
-**Version Control**: Project-level skills (.omc/skills/) are committed with your code, so the whole team benefits.
+**Version Control**: Project-level skills (.omx/skills/) are committed with your code, so the whole team benefits.
 
 **Evolving Knowledge**: Skills improve over time as you discover better approaches and refine triggers.
 
@@ -762,7 +762,7 @@ Good skills are:
 
 Checking skill directories...
 ✓ User skills directory exists: ~/.claude/skills/omc-learned/
-✓ Project skills directory exists: .omc/skills/
+✓ Project skills directory exists: .omx/skills/
 
 Scanning for skills...
 

@@ -23,7 +23,7 @@ This skill invokes the Plan skill in review mode:
 ```
 
 The review workflow:
-1. Read plan file from `.omc/plans/` (or specified path)
+1. Read plan file from `.omx/plans/` (or specified path)
 2. Evaluate via Critic agent
 3. Return verdict: APPROVED, REVISE (with specific feedback), or REJECT (replanning required)
 

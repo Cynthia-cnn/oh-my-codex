@@ -31,6 +31,35 @@ function historyPath(cwd: string): string {
 }
 
 /**
+ * Reset session-scoped HUD/metrics files at launch so stale values do not leak
+ * into a new Codex session.
+ */
+export async function resetSessionMetrics(cwd: string): Promise<void> {
+  const omxDir = join(cwd, '.omx');
+  const stateDir = omxStateDir(cwd);
+  await mkdir(omxDir, { recursive: true });
+  await mkdir(stateDir, { recursive: true });
+
+  const now = new Date().toISOString();
+  await writeFile(join(omxDir, 'metrics.json'), JSON.stringify({
+    total_turns: 0,
+    session_turns: 0,
+    last_activity: now,
+    session_input_tokens: 0,
+    session_output_tokens: 0,
+    session_total_tokens: 0,
+    five_hour_limit_pct: 0,
+    weekly_limit_pct: 0,
+  }, null, 2));
+
+  await writeFile(join(stateDir, 'hud-state.json'), JSON.stringify({
+    last_turn_at: now,
+    turn_count: 0,
+    last_agent_output: '',
+  }, null, 2));
+}
+
+/**
  * Read current session state. Returns null if no session file exists.
  */
 export async function readSessionState(cwd: string): Promise<SessionState | null> {

@@ -149,7 +149,7 @@ When the user provides the `--prd` flag, initialize a Product Requirements Docum
 Check if `{{PROMPT}}` contains `--prd` or `--PRD`.
 
 ### PRD Workflow
-1. Create `.omc/prd.json` and `.omc/progress.txt`
+1. Create `.omx/prd.json` and `.omx/progress.txt`
 2. Parse the task (everything after `--prd` flag)
 3. Break down into user stories:
 
@@ -177,7 +177,7 @@ Check if `{{PROMPT}}` contains `--prd` or `--PRD`.
 
 ### Example
 User input: `--prd build a todo app with React and TypeScript`
-Workflow: Detect flag, extract task, create `.omc/prd.json`, create `.omc/progress.txt`, begin ralph loop.
+Workflow: Detect flag, extract task, create `.omx/prd.json`, create `.omx/progress.txt`, begin ralph loop.
 
 ## Background Execution Rules
 

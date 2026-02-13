@@ -1,6 +1,6 @@
 {
   "name": "oh-my-codex",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Multi-agent orchestration layer for OpenAI Codex CLI",
   "type": "module",
   "main": "dist/index.js",
@@ -12,7 +12,7 @@
     "dev": "tsc --watch",
     "setup": "node bin/omx.js setup",
     "doctor": "node bin/omx.js doctor",
-    "test": "node --test src/**/*.test.ts"
+    "test": "npm run build && node --test dist/**/*.test.js"
   },
   "engines": {
     "node": ">=20"

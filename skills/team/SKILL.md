@@ -64,7 +64,7 @@ User: "/team 3:executor fix all TypeScript errors"
                       -> SendMessage(shutdown_request) to each teammate
                       <- SendMessage(shutdown_response, approve: true)
                       -> TeamDelete("fix-ts-errors")
-                      -> rm .omc/state/team-state.json
+                      -> state_clear(mode="team")
 ```
 
 **Storage layout (managed by Codex CLI):**
@@ -384,7 +384,7 @@ When all real tasks (non-internal) are completed or failed:
      "team_name": "fix-ts-errors"
    }
    ```
-5. **Clean OMX state** -- Remove `.omc/state/team-state.json`
+5. **Clean OMX state** -- `state_clear(mode="team")`
 6. **Report summary** -- Present results to the user
 
 ## Agent Preamble
@@ -545,7 +545,7 @@ Codex and Gemini CLIs run in full-auto mode with filesystem access. They are **a
 /team 3:executor "refactor auth module with security review"
 
 Task decomposition:
-#1 [mcp_codex] Security review of current auth code -> output to .omc/research/auth-security.md
+#1 [mcp_codex] Security review of current auth code -> output to .omx/research/auth-security.md
 #2 [mcp_codex] Refactor auth/login.ts and auth/session.ts (uses #1 findings)
 #3 [mcp_gemini] Redesign auth UI components (login form, session indicator)
 #4 [claude_worker] Update auth tests + fix integration issues
@@ -724,7 +724,7 @@ This prevents duplicate teams and allows graceful recovery from lead failures.
 
 | Aspect | Team (Native) | Swarm (Legacy SQLite) |
 |--------|--------------|----------------------|
-| **Storage** | JSON files in `~/.claude/teams/` and `~/.claude/tasks/` | SQLite in `.omc/state/swarm.db` |
+| **Storage** | JSON files in `~/.claude/teams/` and `~/.claude/tasks/` | SQLite in `.omx/state/swarm.db` |
 | **Dependencies** | `better-sqlite3` not needed | Requires `better-sqlite3` npm package |
 | **Task claiming** | `TaskUpdate(owner + in_progress)` -- lead pre-assigns | SQLite IMMEDIATE transaction -- atomic |
 | **Race conditions** | Possible if two agents claim same task (mitigate by pre-assigning) | None (SQLite transactions) |
@@ -763,7 +763,7 @@ If teammates are unresponsive, `TeamDelete` may fail. In that case, the cancel s
 
 ## Configuration
 
-Optional settings via `.omc-config.json`:
+Optional settings via `.omx-config.json`:
 
 ```json
 {
@@ -808,7 +808,7 @@ MCP workers can operate in isolated git worktrees to prevent file conflicts betw
 
 ### How It Works
 
-1. **Worktree creation**: Before spawning a worker, call `createWorkerWorktree(teamName, workerName, repoRoot)` to create an isolated worktree at `.omc/worktrees/{team}/{worker}` with branch `omc-team/{teamName}/{workerName}`.
+1. **Worktree creation**: Before spawning a worker, call `createWorkerWorktree(teamName, workerName, repoRoot)` to create an isolated worktree at `.omx/worktrees/{team}/{worker}` with branch `omc-team/{teamName}/{workerName}`.
 
 2. **Worker isolation**: Pass the worktree path as the `workingDirectory` in the worker's `BridgeConfig`. The worker operates exclusively in its own worktree.
 

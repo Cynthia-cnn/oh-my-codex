@@ -39,7 +39,7 @@ omx setup
 omx doctor
 
 # Start using
-codex
+omx
 ```
 
 Inside a Codex CLI session:

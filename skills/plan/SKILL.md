@@ -75,11 +75,11 @@ Jumping into code without understanding requirements leads to rework, scope cree
    - **Request changes** — return to step 1 with user feedback
    - **Reject** — discard the plan entirely
 7. User chooses via the structured `AskUserQuestion` UI (never ask for approval in plain text)
-8. On user approval: **MUST** invoke `/ralph` with the approved plan path from `.omc/plans/` as context. Do NOT implement directly. Do NOT edit source code files in the planning agent. The ralph skill handles execution via ultrawork parallel agents.
+8. On user approval: **MUST** invoke `/ralph` with the approved plan path from `.omx/plans/` as context. Do NOT implement directly. Do NOT edit source code files in the planning agent. The ralph skill handles execution via ultrawork parallel agents.
 
 ### Review Mode (`--review`)
 
-1. Read plan file from `.omc/plans/`
+1. Read plan file from `.omx/plans/`
 2. Evaluate via Critic (prefer `ask_codex` with `critic` role)
 3. Return verdict: APPROVED, REVISE (with specific feedback), or REJECT (replanning required)
 
@@ -92,7 +92,7 @@ Every plan includes:
 - Risks and Mitigations
 - Verification Steps
 
-Plans are saved to `.omc/plans/`. Drafts go to `.omc/drafts/`.
+Plans are saved to `.omx/plans/`. Drafts go to `.omx/drafts/`.
 </Steps>
 
 <Tool_Usage>
@@ -171,7 +171,7 @@ Why bad: Decision fatigue. Present one option with trade-offs, get reaction, the
 - [ ] Plan references specific files/lines where applicable (80%+ claims)
 - [ ] All risks have mitigations identified
 - [ ] No vague terms without metrics ("fast" -> "p99 < 200ms")
-- [ ] Plan saved to `.omc/plans/`
+- [ ] Plan saved to `.omx/plans/`
 - [ ] In consensus mode: user explicitly approved before any execution
 </Final_Checklist>
 

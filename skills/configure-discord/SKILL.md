@@ -14,12 +14,12 @@ Set up Discord notifications so OMX can ping you when sessions end, need input, 
 
 ## How This Skill Works
 
-This is an interactive, natural-language configuration skill. Walk the user through setup by asking questions with AskUserQuestion. Write the result to `~/.claude/.omc-config.json`.
+This is an interactive, natural-language configuration skill. Walk the user through setup by asking questions with AskUserQuestion. Write the result to `~/.claude/.omx-config.json`.
 
 ## Step 1: Detect Existing Configuration
 
 ```bash
-CONFIG_FILE="$HOME/.claude/.omc-config.json"
+CONFIG_FILE="$HOME/.claude/.omx-config.json"
 
 if [ -f "$CONFIG_FILE" ]; then
   # Check for existing discord config
@@ -130,7 +130,7 @@ Use AskUserQuestion:
 Read the existing config, merge the new Discord settings, and write back:
 
 ```bash
-CONFIG_FILE="$HOME/.claude/.omc-config.json"
+CONFIG_FILE="$HOME/.claude/.omx-config.json"
 mkdir -p "$(dirname "$CONFIG_FILE")"
 
 if [ -f "$CONFIG_FILE" ]; then
@@ -142,7 +142,7 @@ fi
 
 ### For Webhook method:
 
-Build the notifications object with the collected values and merge into `.omc-config.json` using jq:
+Build the notifications object with the collected values and merge into `.omx-config.json` using jq:
 
 ```bash
 # WEBHOOK_URL, MENTION, USERNAME are collected from user
@@ -226,7 +226,7 @@ Discord Notifications Configured!
   Events:   session-end, ask-user-question
   Username: OMX
 
-Config saved to: ~/.claude/.omc-config.json
+Config saved to: ~/.claude/.omx-config.json
 
 You can also set these via environment variables:
   OMX_DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
@@ -253,4 +253,4 @@ export OMX_DISCORD_NOTIFIER_CHANNEL="your-channel-id"
 export OMX_DISCORD_MENTION="<@1465264645320474637>"  # optional
 ```
 
-Env vars are auto-detected by the notification system without needing `.omc-config.json`.
+Env vars are auto-detected by the notification system without needing `.omx-config.json`.

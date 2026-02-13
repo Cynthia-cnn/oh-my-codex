@@ -14,12 +14,12 @@ Set up Telegram notifications so OMX can message you when sessions end, need inp
 
 ## How This Skill Works
 
-This is an interactive, natural-language configuration skill. Walk the user through setup by asking questions with AskUserQuestion. Write the result to `~/.claude/.omc-config.json`.
+This is an interactive, natural-language configuration skill. Walk the user through setup by asking questions with AskUserQuestion. Write the result to `~/.claude/.omx-config.json`.
 
 ## Step 1: Detect Existing Configuration
 
 ```bash
-CONFIG_FILE="$HOME/.claude/.omc-config.json"
+CONFIG_FILE="$HOME/.claude/.omx-config.json"
 
 if [ -f "$CONFIG_FILE" ]; then
   HAS_TELEGRAM=$(jq -r '.notifications.telegram.enabled // false' "$CONFIG_FILE" 2>/dev/null)
@@ -122,7 +122,7 @@ Default selection: session-end + ask-user-question.
 Read the existing config, merge the new Telegram settings, and write back:
 
 ```bash
-CONFIG_FILE="$HOME/.claude/.omc-config.json"
+CONFIG_FILE="$HOME/.claude/.omx-config.json"
 mkdir -p "$(dirname "$CONFIG_FILE")"
 
 if [ -f "$CONFIG_FILE" ]; then
@@ -210,7 +210,7 @@ Telegram Notifications Configured!
   Format:     Markdown
   Events:     session-end, ask-user-question
 
-Config saved to: ~/.claude/.omc-config.json
+Config saved to: ~/.claude/.omx-config.json
 
 You can also set these via environment variables:
   OMX_TELEGRAM_BOT_TOKEN=123456789:ABCdefGHI...
@@ -229,4 +229,4 @@ export OMX_TELEGRAM_BOT_TOKEN="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
 export OMX_TELEGRAM_CHAT_ID="123456789"
 ```
 
-Env vars are auto-detected by the notification system without needing `.omc-config.json`.
+Env vars are auto-detected by the notification system without needing `.omx-config.json`.

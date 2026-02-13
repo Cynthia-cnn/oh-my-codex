@@ -11,7 +11,7 @@ import { version } from './version.js';
 import { hudCommand } from '../hud/index.js';
 import { generateOverlay, applyOverlay, stripOverlay } from '../hooks/agents-overlay.js';
 import {
-  readSessionState, isSessionStale, writeSessionStart, writeSessionEnd,
+  readSessionState, isSessionStale, writeSessionStart, writeSessionEnd, resetSessionMetrics,
 } from '../hooks/session.js';
 
 const HELP = `
@@ -146,6 +146,7 @@ async function preLaunch(cwd: string, sessionId: string): Promise<void> {
   await applyOverlay(agentsMdPath, overlay, cwd);
 
   // 3. Write session state
+  await resetSessionMetrics(cwd);
   await writeSessionStart(cwd, sessionId);
 }
 

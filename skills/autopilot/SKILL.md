@@ -38,12 +38,12 @@ Most non-trivial software tasks require coordinated phases: understanding requir
 1. **Phase 0 - Expansion**: Turn the user's idea into a detailed spec
    - Analyst (Opus): Extract requirements
    - Architect (Opus): Create technical specification
-   - Output: `.omc/autopilot/spec.md`
+   - Output: `.omx/plans/autopilot-spec.md`
 
 2. **Phase 1 - Planning**: Create an implementation plan from the spec
    - Architect (Opus): Create plan (direct mode, no interview)
    - Critic (Opus): Validate plan
-   - Output: `.omc/plans/autopilot-impl.md`
+   - Output: `.omx/plans/autopilot-impl.md`
 
 3. **Phase 2 - Execution**: Implement the plan using Ralph + Ultrawork
    - Executor-low (Haiku): Simple tasks
@@ -62,9 +62,12 @@ Most non-trivial software tasks require coordinated phases: understanding requir
    - Code-reviewer: Quality review
    - All must approve; fix and re-validate on rejection
 
-6. **Phase 5 - Cleanup**: Delete all state files on successful completion
-   - Remove `.omc/state/autopilot-state.json`, `ralph-state.json`, `ultrawork-state.json`, `ultraqa-state.json`
-   - Run `/cancel` for clean exit
+6. **Phase 5 - Cleanup**: Clear all mode state via OMX MCP tools on successful completion
+   - `state_clear({mode: "autopilot"})`
+   - `state_clear({mode: "ralph"})`
+   - `state_clear({mode: "ultrawork"})`
+   - `state_clear({mode: "ultraqa"})`
+   - Or run `/cancel` for clean exit
 </Steps>
 
 <Tool_Usage>
@@ -164,7 +167,7 @@ If autopilot was cancelled or failed, run `/autopilot` again to resume from wher
 
 ## Troubleshooting
 
-**Stuck in a phase?** Check TODO list for blocked tasks, review `.omc/autopilot-state.json`, or cancel and resume.
+**Stuck in a phase?** Check TODO list for blocked tasks, run `state_read({mode: "autopilot"})`, or cancel and resume.
 
 **QA cycles exhausted?** The same error 3 times indicates a fundamental issue. Review the error pattern; manual intervention may be needed.
 

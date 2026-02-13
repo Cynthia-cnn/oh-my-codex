@@ -48,6 +48,8 @@ export interface HudMetrics {
   session_input_tokens?: number;
   session_output_tokens?: number;
   session_total_tokens?: number;
+  five_hour_limit_pct?: number;
+  weekly_limit_pct?: number;
 }
 
 /** HUD notify state written by notify hook */

@@ -349,7 +349,7 @@ Pipelines can be used within other skills:
 
 ### Pipeline Hangs
 
-**Check:** `.omc/pipeline-state.json` for current stage
+**Check:** `state_read({mode: "pipeline"})` for current stage
 **Fix:** Resume with `/pipeline resume` or cancel and restart
 
 ### Agent Fails Repeatedly
@@ -367,26 +367,25 @@ Pipelines can be used within other skills:
 The pipeline orchestrator:
 
 1. **Parses pipeline definition** - Validates syntax and agent names
-2. **Initializes state** - Creates pipeline-state.json
+2. **Initializes state** - Calls `state_write({mode: "pipeline", active: true, ...})`
 3. **Executes stages sequentially** - Spawns agents with sub-agent spawning
 4. **Passes context between stages** - Structures output for next agent
 5. **Handles branching logic** - Evaluates conditions and routes
 6. **Manages parallel execution** - Spawns concurrent agents and merges
-7. **Persists state** - Updates state file after each stage
+7. **Persists state** - Calls `state_write` after each stage
 8. **Enforces verification** - Runs checks before completion
 
 ## STATE CLEANUP ON COMPLETION
 
-**IMPORTANT: Delete state files on completion - do NOT just set `active: false`**
+**IMPORTANT: Use OMX MCP cleanup on completion**
 
 When pipeline completes (all stages done or cancelled):
 
-```bash
-# Delete pipeline state file
-rm -f .omc/state/pipeline-state.json
+```text
+state_clear({mode: "pipeline"})
 ```
 
-This ensures clean state for future sessions. Stale state files with `active: false` should not be left behind.
+This ensures clean state for future sessions without direct file deletion.
 
 ## Skill Invocation
 

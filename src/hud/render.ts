@@ -15,6 +15,16 @@ function formatTokenCount(value: number): string {
   return `${value}`;
 }
 
+function isCurrentSessionMetrics(ctx: HudRenderContext): boolean {
+  if (!ctx.metrics || !ctx.session?.started_at || !ctx.metrics.last_activity) return true;
+
+  const sessionStart = new Date(ctx.session.started_at).getTime();
+  const lastActivity = new Date(ctx.metrics.last_activity).getTime();
+  if (!Number.isFinite(sessionStart) || !Number.isFinite(lastActivity)) return true;
+
+  return lastActivity >= sessionStart;
+}
+
 // ============================================================================
 // Element Renderers
 // ============================================================================
@@ -67,12 +77,12 @@ function renderPipeline(ctx: HudRenderContext): string | null {
 }
 
 function renderTurns(ctx: HudRenderContext): string | null {
-  if (!ctx.metrics) return null;
+  if (!ctx.metrics || !isCurrentSessionMetrics(ctx)) return null;
   return dim(`turns:${ctx.metrics.session_turns}`);
 }
 
 function renderTokens(ctx: HudRenderContext): string | null {
-  if (!ctx.metrics) return null;
+  if (!ctx.metrics || !isCurrentSessionMetrics(ctx)) return null;
 
   const total =
     ctx.metrics.session_total_tokens
@@ -80,6 +90,18 @@ function renderTokens(ctx: HudRenderContext): string | null {
 
   if (!Number.isFinite(total) || total <= 0) return null;
   return dim(`tokens:${formatTokenCount(total)}`);
+}
+
+function renderQuota(ctx: HudRenderContext): string | null {
+  if (!ctx.metrics || !isCurrentSessionMetrics(ctx)) return null;
+  const fiveHour = ctx.metrics.five_hour_limit_pct;
+  const weekly = ctx.metrics.weekly_limit_pct;
+
+  const parts: string[] = [];
+  if (typeof fiveHour === 'number' && Number.isFinite(fiveHour) && fiveHour > 0) parts.push(`5h:${Math.round(fiveHour)}%`);
+  if (typeof weekly === 'number' && Number.isFinite(weekly) && weekly > 0) parts.push(`wk:${Math.round(weekly)}%`);
+  if (parts.length === 0) return null;
+  return dim(`quota:${parts.join(',')}`);
 }
 
 function renderLastActivity(ctx: HudRenderContext): string | null {
@@ -135,6 +157,7 @@ const FOCUSED_ELEMENTS: ElementRenderer[] = [
   renderEcomode,
   renderTurns,
   renderTokens,
+  renderQuota,
   renderSessionDuration,
   renderLastActivity,
 ];
@@ -149,6 +172,7 @@ const FULL_ELEMENTS: ElementRenderer[] = [
   renderEcomode,
   renderTurns,
   renderTokens,
+  renderQuota,
   renderSessionDuration,
   renderLastActivity,
   renderTotalTurns,

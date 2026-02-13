@@ -16,10 +16,10 @@ Analyze your OMX usage patterns and provide personalized recommendations for get
 ## Behavior
 
 1. **Scan usage data** from:
-   - `.omc/sessions/` for session history
-   - `.omc/state/` for mode usage patterns
-   - `.omc/notepad.md` for working memory
-   - `.omc/project-memory.json` for project context
+   - `.omx/sessions/` for session history
+   - `.omx/state/` for mode usage patterns
+   - `.omx/notepad.md` for working memory
+   - `.omx/project-memory.json` for project context
    - Agent flow traces for tool and agent usage
 2. **Analyze patterns**:
    - Most-used modes and skills

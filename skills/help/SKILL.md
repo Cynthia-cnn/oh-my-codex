@@ -65,8 +65,8 @@ Analyze your oh-my-codex usage and get tailored recommendations to improve your 
 
 ### What It Does
 
-1. Reads token tracking from `~/.omc/state/token-tracking.jsonl`
-2. Reads session history from `.omc/state/session-history.json`
+1. Reads token tracking from `~/.omx/state/token-tracking.jsonl`
+2. Reads session history from `.omx/state/session-history.json`
 3. Analyzes agent usage patterns
 4. Identifies underutilized features
 5. Recommends configuration changes
@@ -75,9 +75,9 @@ Analyze your oh-my-codex usage and get tailored recommendations to improve your 
 
 ```bash
 # Check for token tracking data
-TOKEN_FILE="$HOME/.omc/state/token-tracking.jsonl"
-SESSION_FILE=".omc/state/session-history.json"
-CONFIG_FILE="$HOME/.claude/.omc-config.json"
+TOKEN_FILE="$HOME/.omx/state/token-tracking.jsonl"
+SESSION_FILE=".omx/state/session-history.json"
+CONFIG_FILE="$HOME/.claude/.omx-config.json"
 
 echo "Analyzing OMX Usage..."
 echo ""
@@ -176,7 +176,7 @@ If no data found:
 📊 Limited Usage Data Available
 
 No token tracking found. To enable tracking:
-1. Ensure ~/.omc/state/ directory exists
+1. Ensure ~/.omx/state/ directory exists
 2. Run any OMX command to start tracking
 
 Tip: Run /omc-setup to configure OMX properly.

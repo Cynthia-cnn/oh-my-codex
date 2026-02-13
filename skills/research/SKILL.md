@@ -230,7 +230,7 @@ Batch 2: Stages 6-7 (parallel)
 ### Directory Structure
 
 ```
-.omc/research/{session-id}/
+.omx/research/{session-id}/
   state.json              # Session state and progress
   stages/
     stage-1.md            # Stage 1 findings
@@ -485,7 +485,7 @@ Optional settings in `.claude/settings.json`:
 
 Or say: "stop research", "cancel research", "abort"
 
-Progress is preserved in `.omc/research/{session-id}/` for resume.
+Progress is preserved in `.omx/research/{session-id}/` for resume.
 
 ## Troubleshooting
 

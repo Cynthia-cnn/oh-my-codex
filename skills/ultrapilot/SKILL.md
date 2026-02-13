@@ -199,7 +199,7 @@ const finalResult = extractSharedFiles(result);
 2. **Shared files deferred** - Handled sequentially in integration
 3. **Boundary files tracked** - Files that import across boundaries
 
-**Data Structure:** `.omc/state/ultrapilot-ownership.json`
+**Data Structure:** `.omx/state/ultrapilot-ownership.json`
 
 ```json
 {
@@ -301,7 +301,7 @@ Deliver: Code changes + list of boundary dependencies`,
 
 ### Session State
 
-**Location:** `.omc/ultrapilot-state.json`
+**Location:** `.omx/ultrapilot-state.json`
 
 ```json
 {
@@ -325,13 +325,13 @@ Deliver: Code changes + list of boundary dependencies`,
 
 ### File Ownership Map
 
-**Location:** `.omc/state/ultrapilot-ownership.json`
+**Location:** `.omx/state/ultrapilot-ownership.json`
 
 Tracks which worker owns which files (see Phase 2 example above).
 
 ### Progress Tracking
 
-**Location:** `.omc/ultrapilot/progress.json`
+**Location:** `.omx/ultrapilot/progress.json`
 
 ```json
 {
@@ -455,7 +455,7 @@ If ultrapilot was cancelled or a worker failed:
 1. **Clear module boundaries** - Works best with well-separated code
 2. **Minimal shared state** - Reduces integration complexity
 3. **Trust the decomposition** - Architect knows what's parallel-safe
-4. **Monitor progress** - Check `.omc/ultrapilot/progress.json`
+4. **Monitor progress** - Check `.omx/ultrapilot/progress.json`
 5. **Review conflicts early** - Don't wait until integration
 
 ## File Ownership Strategy
@@ -537,15 +537,15 @@ Automatically classified as shared:
 **Decomposition fails?**
 - Task may be too coupled
 - Fallback to autopilot triggered automatically
-- Review `.omc/ultrapilot/decomposition.json` for details
+- Review `.omx/ultrapilot/decomposition.json` for details
 
 **Worker hangs?**
-- Check worker logs in `.omc/logs/ultrapilot-worker-N.log`
+- Check worker logs in `.omx/logs/ultrapilot-worker-N.log`
 - Cancel and restart that worker
 - May indicate file ownership issue
 
 **Integration conflicts?**
-- Review `.omc/ultrapilot-state.json` conflicts array
+- Review `.omx/ultrapilot-state.json` conflicts array
 - Check if shared files were unexpectedly modified
 - Adjust ownership rules if needed
 
@@ -577,7 +577,7 @@ Automatically classified as shared:
 
 You can provide a custom decomposition file to skip Phase 1:
 
-**Location:** `.omc/ultrapilot/custom-decomposition.json`
+**Location:** `.omx/ultrapilot/custom-decomposition.json`
 
 ```json
 {
@@ -612,8 +612,8 @@ When all workers complete successfully:
 
 ```bash
 # Delete ultrapilot state files
-rm -f .omc/state/ultrapilot-state.json
-rm -f .omc/state/ultrapilot-ownership.json
+rm -f .omx/state/ultrapilot-state.json
+rm -f .omx/state/ultrapilot-ownership.json
 ```
 
 ## Future Enhancements

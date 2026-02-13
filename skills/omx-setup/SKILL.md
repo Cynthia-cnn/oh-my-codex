@@ -15,7 +15,7 @@ Note: All `~/.claude/...` paths in this guide respect `CLAUDE_CONFIG_DIR` when t
 
 ```bash
 # Check if setup was already completed
-CONFIG_FILE="$HOME/.claude/.omc-config.json"
+CONFIG_FILE="$HOME/.claude/.omx-config.json"
 
 if [ -f "$CONFIG_FILE" ]; then
   SETUP_COMPLETED=$(jq -r '.setupCompleted // empty' "$CONFIG_FILE" 2>/dev/null)
@@ -64,7 +64,7 @@ If user passes `--force` flag, skip this check and proceed directly to setup.
 **IMPORTANT**: This setup process saves progress after each step. If interrupted (Ctrl+C or connection loss), the setup can resume from where it left off.
 
 ### State File Location
-- `.omc/state/setup-state.json` - Tracks completed steps
+- `.omx/state/setup-state.json` - Tracks completed steps
 
 ### Resume Detection (Step 0)
 
@@ -72,7 +72,7 @@ Before starting any step, check for existing state:
 
 ```bash
 # Check for existing setup state
-STATE_FILE=".omc/state/setup-state.json"
+STATE_FILE=".omx/state/setup-state.json"
 
 # Cross-platform ISO date to epoch conversion
 iso_to_epoch() {
@@ -125,7 +125,7 @@ If state exists, use AskUserQuestion to prompt:
 
 If user chooses "Start fresh":
 ```bash
-rm -f ".omc/state/setup-state.json"
+rm -f ".omx/state/setup-state.json"
 echo "Previous state cleared. Starting fresh setup."
 ```
 
@@ -137,8 +137,8 @@ After completing each major step, save progress:
 # Save setup progress (call after each step)
 # Usage: save_setup_progress STEP_NUMBER
 save_setup_progress() {
-  mkdir -p .omc/state
-  cat > ".omc/state/setup-state.json" << EOF
+  mkdir -p .omx/state
+  cat > ".omx/state/setup-state.json" << EOF
 {
   "lastCompletedStep": $1,
   "timestamp": "$(date -Iseconds)",
@@ -153,7 +153,7 @@ EOF
 After successful setup completion (Step 7/8), remove the state file:
 
 ```bash
-rm -f ".omc/state/setup-state.json"
+rm -f ".omx/state/setup-state.json"
 echo "Setup completed successfully. State cleared."
 ```
 
@@ -305,8 +305,8 @@ After completing local configuration, save progress and report:
 
 ```bash
 # Save progress - Step 2 complete (Local config)
-mkdir -p .omc/state
-cat > ".omc/state/setup-state.json" << EOF
+mkdir -p .omx/state
+cat > ".omx/state/setup-state.json" << EOF
 {
   "lastCompletedStep": 2,
   "timestamp": "$(date -Iseconds)",
@@ -327,7 +327,7 @@ EOF
 
 If `--local` flag was used, clear state and **STOP HERE**:
 ```bash
-rm -f ".omc/state/setup-state.json"
+rm -f ".omx/state/setup-state.json"
 ```
 Do not continue to HUD setup or other steps.
 
@@ -453,8 +453,8 @@ After completing global configuration, save progress and report:
 
 ```bash
 # Save progress - Step 2 complete (Global config)
-mkdir -p .omc/state
-cat > ".omc/state/setup-state.json" << EOF
+mkdir -p .omx/state
+cat > ".omx/state/setup-state.json" << EOF
 {
   "lastCompletedStep": 2,
   "timestamp": "$(date -Iseconds)",
@@ -475,7 +475,7 @@ EOF
 
 If `--global` flag was used, clear state and **STOP HERE**:
 ```bash
-rm -f ".omc/state/setup-state.json"
+rm -f ".omx/state/setup-state.json"
 ```
 Do not continue to HUD setup or other steps.
 
@@ -495,9 +495,9 @@ This will:
 After HUD setup completes, save progress:
 ```bash
 # Save progress - Step 3 complete (HUD setup)
-mkdir -p .omc/state
-CONFIG_TYPE=$(cat ".omc/state/setup-state.json" 2>/dev/null | grep -oE '"configType":\s*"[^"]+"' | cut -d'"' -f4 || echo "unknown")
-cat > ".omc/state/setup-state.json" << EOF
+mkdir -p .omx/state
+CONFIG_TYPE=$(cat ".omx/state/setup-state.json" 2>/dev/null | grep -oE '"configType":\s*"[^"]+"' | cut -d'"' -f4 || echo "unknown")
+cat > ".omx/state/setup-state.json" << EOF
 {
   "lastCompletedStep": 3,
   "timestamp": "$(date -Iseconds)",
@@ -541,9 +541,9 @@ if [ -d "$HOME/.claude/plugins/cache/omc/oh-my-codex" ]; then
   INSTALLED_VERSION=$(ls -1 "$HOME/.claude/plugins/cache/omc/oh-my-codex" | sort -V | tail -1)
 fi
 
-# Try .omc-version.json second
-if [ -z "$INSTALLED_VERSION" ] && [ -f ".omc-version.json" ]; then
-  INSTALLED_VERSION=$(grep -oE '"version":\s*"[^"]+' .omc-version.json | cut -d'"' -f4)
+# Try .omx-version.json second
+if [ -z "$INSTALLED_VERSION" ] && [ -f ".omx-version.json" ]; then
+  INSTALLED_VERSION=$(grep -oE '"version":\s*"[^"]+' .omx-version.json | cut -d'"' -f4)
 fi
 
 # Try CLAUDE.md header third (local first, then global)
@@ -585,11 +585,11 @@ Use the AskUserQuestion tool to prompt the user:
 1. **ultrawork (maximum capability)** - Uses all agent tiers including Opus for complex tasks. Best for challenging work where quality matters most. (Recommended)
 2. **ecomode (token efficient)** - Prefers Haiku/Sonnet agents, avoids Opus. Best for pro-plan users who want cost efficiency.
 
-Store the preference in `~/.claude/.omc-config.json`:
+Store the preference in `~/.claude/.omx-config.json`:
 
 ```bash
 # Read existing config or create empty object
-CONFIG_FILE="$HOME/.claude/.omc-config.json"
+CONFIG_FILE="$HOME/.claude/.omx-config.json"
 mkdir -p "$(dirname "$CONFIG_FILE")"
 
 if [ -f "$CONFIG_FILE" ]; then
@@ -679,7 +679,7 @@ If beads or beads-rust is detected, use AskUserQuestion:
 Store the preference:
 
 ```bash
-CONFIG_FILE="$HOME/.claude/.omc-config.json"
+CONFIG_FILE="$HOME/.claude/.omx-config.json"
 mkdir -p "$(dirname "$CONFIG_FILE")"
 
 if [ -f "$CONFIG_FILE" ]; then
@@ -827,10 +827,10 @@ Use the AskUserQuestion tool with multiple questions:
 2. **build-fixer** - Specialized for build/type error fixing
 3. **designer** - Specialized for UI/frontend work
 
-Store the team configuration in `~/.claude/.omc-config.json`:
+Store the team configuration in `~/.claude/.omx-config.json`:
 
 ```bash
-CONFIG_FILE="$HOME/.claude/.omc-config.json"
+CONFIG_FILE="$HOME/.claude/.omx-config.json"
 mkdir -p "$(dirname "$CONFIG_FILE")"
 
 if [ -f "$CONFIG_FILE" ]; then
@@ -899,9 +899,9 @@ Or by running `/omx-setup --force` and choosing to enable teams.
 
 ```bash
 # Save progress - Step 5.5 complete (Teams configured)
-mkdir -p .omc/state
-CONFIG_TYPE=$(cat ".omc/state/setup-state.json" 2>/dev/null | grep -oE '"configType":\s*"[^"]+"' | cut -d'"' -f4 || echo "unknown")
-cat > ".omc/state/setup-state.json" << EOF
+mkdir -p .omx/state
+CONFIG_TYPE=$(cat ".omx/state/setup-state.json" 2>/dev/null | grep -oE '"configType":\s*"[^"]+"' | cut -d'"' -f4 || echo "unknown")
+cat > ".omx/state/setup-state.json" << EOF
 {
   "lastCompletedStep": 5.5,
   "timestamp": "$(date -Iseconds)",
@@ -1054,10 +1054,10 @@ After Step 8 completes (regardless of star choice), clear the temporary state an
 
 ```bash
 # Setup complete - clear temporary state file
-rm -f ".omc/state/setup-state.json"
+rm -f ".omx/state/setup-state.json"
 
 # Mark setup as completed in persistent config (prevents re-running full setup on updates)
-CONFIG_FILE="$HOME/.claude/.omc-config.json"
+CONFIG_FILE="$HOME/.claude/.omx-config.json"
 mkdir -p "$(dirname "$CONFIG_FILE")"
 
 # Get current OMX version from CLAUDE.md

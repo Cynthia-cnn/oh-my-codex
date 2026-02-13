@@ -60,6 +60,59 @@ function getSessionTokenUsage(payload) {
   };
 }
 
+function clampPct(value) {
+  if (!Number.isFinite(value)) return null;
+  if (value < 0) return 0;
+  if (value <= 1) return Math.round(value * 100);
+  if (value > 100) return 100;
+  return Math.round(value);
+}
+
+function extractLimitPct(limit) {
+  if (limit == null) return null;
+  if (typeof limit === 'number' || typeof limit === 'string') return clampPct(asNumber(limit));
+  if (typeof limit !== 'object') return null;
+
+  const directPct = clampPct(asNumber(limit.percent ?? limit.pct ?? limit.usage_percent ?? limit.usagePct));
+  if (directPct !== null) return directPct;
+
+  const used = asNumber(limit.used ?? limit.usage ?? limit.current);
+  const max = asNumber(limit.limit ?? limit.max ?? limit.total);
+  if (used !== null && max !== null && max > 0) {
+    return clampPct((used / max) * 100);
+  }
+
+  const remaining = asNumber(limit.remaining ?? limit.left);
+  if (remaining !== null && max !== null && max > 0) {
+    return clampPct(((max - remaining) / max) * 100);
+  }
+
+  return null;
+}
+
+function getQuotaUsage(payload) {
+  const usage = payload.usage || payload['usage'] || payload.token_usage || payload['token-usage'] || {};
+
+  const fiveHourRaw =
+    usage.five_hour_limit
+    ?? usage.fiveHourLimit
+    ?? usage['5h_limit']
+    ?? payload.five_hour_limit
+    ?? payload.fiveHourLimit
+    ?? payload['5h_limit'];
+  const weeklyRaw =
+    usage.weekly_limit
+    ?? usage.weeklyLimit
+    ?? payload.weekly_limit
+    ?? payload.weeklyLimit;
+
+  const fiveHourLimitPct = extractLimitPct(fiveHourRaw);
+  const weeklyLimitPct = extractLimitPct(weeklyRaw);
+
+  if (fiveHourLimitPct === null && weeklyLimitPct === null) return null;
+  return { fiveHourLimitPct, weeklyLimitPct };
+}
+
 async function main() {
   const rawPayload = process.argv[process.argv.length - 1];
   if (!rawPayload || rawPayload.startsWith('-')) {
@@ -131,6 +184,7 @@ async function main() {
     }
 
     const tokenUsage = getSessionTokenUsage(payload);
+    const quotaUsage = getQuotaUsage(payload);
 
     metrics.total_turns++;
     metrics.session_turns++;
@@ -146,6 +200,11 @@ async function main() {
       }
     } else {
       metrics.session_total_tokens = (metrics.session_input_tokens || 0) + (metrics.session_output_tokens || 0);
+    }
+
+    if (quotaUsage) {
+      if (quotaUsage.fiveHourLimitPct !== null) metrics.five_hour_limit_pct = quotaUsage.fiveHourLimitPct;
+      if (quotaUsage.weeklyLimitPct !== null) metrics.weekly_limit_pct = quotaUsage.weeklyLimitPct;
     }
 
     await writeFile(metricsPath, JSON.stringify(metrics, null, 2));
