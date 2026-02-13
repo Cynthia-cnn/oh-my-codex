@@ -33,10 +33,15 @@ Usage:
 
 Options:
   --yolo        Launch Codex in yolo mode (shorthand for: omx launch --yolo)
+  --madmax      DANGEROUS: bypass Codex approvals and sandbox
+                (alias for --dangerously-bypass-approvals-and-sandbox)
   --force       Force reinstall (overwrite existing files)
   --dry-run     Show what would be done without doing it
   --verbose     Show detailed output
 `;
+
+const MADMAX_FLAG = '--madmax';
+const CODEX_BYPASS_FLAG = '--dangerously-bypass-approvals-and-sandbox';
 
 export async function main(args: string[]): Promise<void> {
   const knownCommands = new Set([
@@ -131,6 +136,7 @@ async function showStatus(): Promise<void> {
 
 async function launchWithHud(args: string[]): Promise<void> {
   const cwd = process.cwd();
+  const normalizedArgs = normalizeCodexLaunchArgs(args);
   const sessionId = `omx-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   try {
@@ -149,11 +155,41 @@ async function launchWithHud(args: string[]): Promise<void> {
 
   // ── Phase 2: run ────────────────────────────────────────────────────────
   try {
-    runCodex(cwd, args);
+    runCodex(cwd, normalizedArgs);
   } finally {
     // ── Phase 3: postLaunch ─────────────────────────────────────────────
     await postLaunch(cwd, sessionId);
   }
+}
+
+export function normalizeCodexLaunchArgs(args: string[]): string[] {
+  const normalized: string[] = [];
+  let wantsBypass = false;
+  let hasBypass = false;
+
+  for (const arg of args) {
+    if (arg === MADMAX_FLAG) {
+      wantsBypass = true;
+      continue;
+    }
+
+    if (arg === CODEX_BYPASS_FLAG) {
+      wantsBypass = true;
+      if (!hasBypass) {
+        normalized.push(arg);
+        hasBypass = true;
+      }
+      continue;
+    }
+
+    normalized.push(arg);
+  }
+
+  if (wantsBypass && !hasBypass) {
+    normalized.push(CODEX_BYPASS_FLAG);
+  }
+
+  return normalized;
 }
 
 /**
