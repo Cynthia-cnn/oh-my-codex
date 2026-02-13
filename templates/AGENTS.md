@@ -281,10 +281,27 @@ oh-my-codex uses the `.omx/` directory for persistent state:
 - `.omx/plans/` -- Planning documents
 - `.omx/logs/` -- Audit logs
 
-State tools are available via MCP when configured:
-- `state_read`, `state_write`, `state_clear`, `state_list_active`
-- `project_memory_read`, `project_memory_write`, `project_memory_add_note`
-- `notepad_read`, `notepad_write_priority`, `notepad_write_working`, `notepad_write_manual`
+Tools are available via MCP when configured (`omx setup` registers all servers):
+
+State & Memory:
+- `state_read`, `state_write`, `state_clear`, `state_list_active`, `state_get_status`
+- `project_memory_read`, `project_memory_write`, `project_memory_add_note`, `project_memory_add_directive`
+- `notepad_read`, `notepad_write_priority`, `notepad_write_working`, `notepad_write_manual`, `notepad_prune`, `notepad_stats`
+
+Code Intelligence:
+- `lsp_diagnostics` -- type errors for a single file (tsc --noEmit)
+- `lsp_diagnostics_directory` -- project-wide type checking
+- `lsp_document_symbols` -- function/class/variable outline for a file
+- `lsp_workspace_symbols` -- search symbols by name across the workspace
+- `lsp_hover` -- type info at a position (regex-based approximation)
+- `lsp_find_references` -- find all references to a symbol (grep-based)
+- `lsp_servers` -- list available diagnostic backends
+- `ast_grep_search` -- structural code pattern search (requires ast-grep CLI)
+- `ast_grep_replace` -- structural code transformation (dryRun=true by default)
+
+Trace:
+- `trace_timeline` -- chronological agent turn + mode event timeline
+- `trace_summary` -- aggregate statistics (turn counts, timing, token usage)
 
 Mode lifecycle requirements:
 - On mode start, call `state_write` with `mode`, `active: true`, `started_at`, and mode-specific fields.
