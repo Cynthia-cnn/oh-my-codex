@@ -38,8 +38,8 @@ omx setup
 # Verify installation
 omx doctor
 
-# Start using
-omx
+# Recommended launch profile (trusted / externally sandboxed environments)
+omx --xhigh --madmax
 ```
 
 Inside a Codex CLI session:
@@ -49,6 +49,35 @@ Inside a Codex CLI session:
 > /prompts:executor "add input validation to the login flow"
 > $autopilot "build a REST API for user management"
 > $team 3:executor "fix all TypeScript errors"
+```
+
+## Team-First Workflow
+
+The core release feature in OMX is coordinated team execution.
+
+- Use `$team` inside Codex when you want staged multi-agent delivery with verify/fix loops.
+- Use `omx team` from terminal when you want tmux worker panes plus shared task/mailbox state.
+- OMX includes a HUD + tmux hook workaround path for Codex CLI behavior that is not natively supported yet.
+
+Canonical pipeline:
+
+```
+team-plan -> team-prd -> team-exec -> team-verify -> team-fix (loop)
+```
+
+Examples:
+
+```bash
+# Inside Codex
+$team 3:executor "fix all TypeScript errors across the project"
+$team ralph "ship a complete feature with persistence + verification"
+
+# From terminal
+omx team 4:executor "parallelize a multi-module refactor"
+omx doctor --team
+
+# Recommended high-throughput launch profile
+omx --xhigh --madmax
 ```
 
 ## How It Works
@@ -163,22 +192,6 @@ Invoke skills with `$name` in Codex CLI (e.g., `$autopilot "build a REST API"`).
 ### Utilities
 `$cancel` `$doctor` `$help` `$note` `$trace` `$skill` `$learner` `$research` `$deepinit` `$release` `$hud` `$omx-setup` `$configure-telegram` `$configure-discord` `$writer-memory` `$psm` `$ralph-init` `$learn-about-omx` `$review`
 
-## Team Orchestration
-
-The `$team` skill provides a staged multi-agent pipeline:
-
-```
-team-plan -> team-prd -> team-exec -> team-verify -> team-fix (loop)
-```
-
-Each stage uses specialized agents. The verify/fix loop is bounded by max attempts. Terminal states: `complete`, `failed`, `cancelled`.
-
-```
-$team 3:executor "fix all TypeScript errors across the project"
-$team 5:designer "implement responsive layouts for all pages"
-$team ralph "build a complete REST API"   # team + ralph persistence
-```
-
 ## MCP Servers
 
 OMX provides two MCP servers configured via `config.toml`:
@@ -203,10 +216,12 @@ The AGENTS.md orchestration brain detects keywords and activates skills automati
 ```bash
 omx --yolo    # Launch Codex with low-friction execution flags
 omx --madmax  # Launch Codex with full approval+sandbox bypass (dangerous)
-omx --high    # Launch Codex with reasoning effort set to high (default)
-omx --xhigh   # Launch Codex with reasoning effort set to xhigh
+omx --high    # Launch Codex with reasoning effort set to high
+omx --xhigh   # Launch Codex with reasoning effort set to xhigh (recommended)
 omx setup     # Install and configure OMX
 omx doctor    # Run 9 installation health checks
+omx doctor --team # Diagnose team/swarm runtime state and blockers
+omx team ...  # Spawn tmux team workers and bootstrap team state
 omx tmux-hook # Manage tmux prompt-injection workaround (init/status/validate/test)
 omx reasoning <mode> # Set default reasoning mode (low|medium|high|xhigh)
 omx status    # Show active mode state
@@ -230,11 +245,15 @@ omx help      # Usage guide
   Launches Codex with reasoning effort set to `high` (default).
 
 - `--xhigh`
-  Launches Codex with reasoning effort set to `xhigh`.
+  Launches Codex with reasoning effort set to `xhigh` (recommended).
+
+Recommended launch profile:
+- `omx --xhigh --madmax`
+  Use this for maximum throughput in trusted environments with external sandboxing.
 
 ## Tmux Injection Workaround (v0.2.3 Default)
 
-OMX includes a production-safe workaround for Codex hook limitations: it can inject a continuation prompt into a tmux pane from `scripts/notify-hook.js`.
+Codex CLI does not natively provide this tmux continuation behavior. OMX includes a production-safe HUD/hook workaround that can inject a continuation prompt into a tmux pane from `scripts/notify-hook.js`.
 
 As of `v0.2.3`, generated tmux hook config is enabled by default (`enabled: true`).
 
