@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.3.9] - 2026-02-15
+
+### Changed
+- Updated planner handoff guidance to use actionable `$ralph` / `$team` commands instead of the removed `/oh-my-codex:start-work` command.
+- Updated team skill docs to describe team-scoped `worker-agents.md` composition (no project `AGENTS.md` mutation).
+
+### Fixed
+- Preserved and restored pre-existing `OMX_MODEL_INSTRUCTIONS_FILE` values during team start rollback/shutdown to avoid clobbering leader config.
+
 ## [0.3.8] - 2026-02-15
 
 ### Fixed
