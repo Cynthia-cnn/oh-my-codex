@@ -51,6 +51,18 @@ Recommended trusted-environment launch profile:
 omx --xhigh --madmax
 ```
 
+## New in v0.4.0
+
+- **Hook extension workflow** with `omx hooks` (`init|status|validate|test`) for additive plugin-based automation.
+- **Native hook runtime integration** for `session-start`, `session-end`, `session-idle`, and `turn-complete` event dispatch.
+- **tmux reliability hardening** by standardizing submit key behavior to `C-m` across the codebase.
+
+Try it:
+
+```bash
+OMX_HOOK_PLUGINS=1 omx hooks test
+```
+
 ## First Session
 
 Inside Codex:
@@ -96,9 +108,21 @@ omx status         # Show active modes
 omx cancel         # Cancel active execution modes
 omx reasoning <mode> # low|medium|high|xhigh
 omx tmux-hook ...  # init|status|validate|test
+omx hooks ...      # init|status|validate|test (plugin extension workflow)
 omx hud ...        # --watch|--json|--preset
 omx help
 ```
+
+## Hooks Extension (Additive Surface)
+
+OMX now includes `omx hooks` for plugin scaffolding and validation.
+
+- `omx tmux-hook` remains supported and unchanged.
+- `omx hooks` is additive and does not replace tmux-hook workflows.
+- Plugin files live at `.omx/hooks/*.mjs`.
+- Plugins are off by default; enable with `OMX_HOOK_PLUGINS=1`.
+
+See `docs/hooks-extension.md` for the full extension workflow and event model.
 
 ## Launch Flags
 
@@ -212,6 +236,7 @@ npm test
 ## Notes
 
 - Coverage and parity notes: `COVERAGE.md`
+- Hook extension workflow: `docs/hooks-extension.md`
 - Setup and contribution details: `CONTRIBUTING.md`
 
 ## Acknowledgments
