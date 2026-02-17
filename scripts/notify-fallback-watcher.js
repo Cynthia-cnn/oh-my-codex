@@ -207,7 +207,7 @@ async function main() {
   }
 }
 
-main().catch(() => process.exit(1));    }
+main().catch(() => process.exit(1));
 
     if (parsed.type !== 'event_msg') continue;
     if (parsed.payload?.type !== 'task_complete') continue;
