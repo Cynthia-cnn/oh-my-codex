@@ -2,112 +2,212 @@
 
 import { readFile, writeFile, mkdir, stat, readdir } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-const args = process.argv.slice(2);
+const argv = process.argv.slice(2);
 
-function getArg(name, def) {
-  const i = args.indexOf(name);
-  if (i !== -1 && args[i + 1]) return args[i + 1];
-  return def;
+function arg(name, def) {
+  const i = argv.indexOf(name);
+  return i !== -1 && argv[i + 1] ? argv[i + 1] : def;
 }
 
-function hasFlag(name) {
-  return args.includes(name);
+function flag(name) {
+  return argv.includes(name);
 }
 
-const once = hasFlag('--once');
-const cwd = getArg('--cwd', process.cwd());
-const notifyScript = getArg('--notify-script');
-const pollMs = Number(getArg('--poll-ms', '100'));
+const once = flag('--once');
+const cwd = arg('--cwd', process.cwd());
+const notifyScript = arg('--notify-script');
+const pollMs = Number(arg('--poll-ms', '100'));
 
 const today = new Date().toISOString().split('T')[0];
-const logPath = join(cwd, '.omx', 'logs', `turns-${today}.jsonl`);
+const turnLog = join(cwd, '.omx', 'logs', `turns-${today}.jsonl`);
 
-async function eventLog(obj) {
-  await mkdir(dirname(logPath), { recursive: true });
-  await writeFile(logPath, JSON.stringify(obj) + '\n', { flag: 'a' });
-}
-
-function todaySessionDir(baseHome) {
-  const now = new Date();
-  return join(
-    baseHome,
-    '.codex',
-    'sessions',
-    String(now.getUTCFullYear()),
-    String(now.getUTCMonth() + 1).padStart(2, '0'),
-    String(now.getUTCDate()).padStart(2, '0')
+async function logTurn(threadId, turnId, file) {
+  await mkdir(dirname(turnLog), { recursive: true });
+  await writeFile(
+    turnLog,
+    JSON.stringify({ thread_id: threadId, turn_id: turnId, file }) + '\n',
+    { flag: 'a' }
   );
 }
 
-function buildPayload(threadId, turnId, lastMessage) {
-  return {
-    'thread-id': threadId,
-    'turn-id': turnId,
-    'input-messages': ['[notify-fallback] synthesized from rollout task_complete'],
-    'last-assistant-message': lastMessage || '',
-    source: 'notify-fallback-watcher',
-  };
+function sessionDir(home) {
+  const d = new Date();
+  return join(
+    home,
+    '.codex',
+    'sessions',
+    String(d.getUTCFullYear()),
+    String(d.getUTCMonth() + 1).padStart(2, '0'),
+    String(d.getUTCDate()).padStart(2, '0')
+  );
 }
 
-async function invokeNotifyHook(payload, filePath) {
-  spawnSync(process.execPath, [notifyScript, JSON.stringify(payload)], {
-    cwd,
-    encoding: 'utf-8',
-  });
-  await eventLog({
-    thread_id: payload['thread-id'],
-    turn_id: payload['turn-id'],
-    file: filePath,
-  });
-}
-
-async function getRolloutFile(sessionDir) {
+async function findRolloutFile(dir) {
   try {
-    const files = await readdir(sessionDir);
-    const jsonl = files.filter(f => f.endsWith('.jsonl'));
-    if (!jsonl.length) return null;
-    return join(sessionDir, jsonl[0]);
+    const files = await readdir(dir);
+    const f = files.find(x => x.endsWith('.jsonl'));
+    return f ? join(dir, f) : null;
   } catch {
     return null;
   }
 }
 
-async function extractThreadId(filePath) {
-  const content = await readFile(filePath, 'utf-8').catch(() => '');
-  const lines = content.split('\n').filter(Boolean);
+async function readAll(file) {
+  const txt = await readFile(file, 'utf-8').catch(() => '');
+  return txt.split('\n').filter(Boolean);
+}
+
+async function extractThreadId(file) {
+  const lines = await readAll(file);
   for (const line of lines) {
     try {
-      const parsed = JSON.parse(line);
-      if (parsed.type === 'session_meta') {
-        return parsed.payload?.id;
+      const j = JSON.parse(line);
+      if (j.type === 'session_meta') {
+        return j.payload?.id;
       }
     } catch {}
   }
   return undefined;
 }
 
-async function processFileOnce(filePath) {
-  const startTime = Date.now();
-  const content = await readFile(filePath, 'utf-8').catch(() => '');
-  const lines = content.split('\n').filter(Boolean);
+function isTaskComplete(j) {
+  return j?.type === 'event_msg' && j?.payload?.type === 'task_complete';
+}
+
+async function invokeNotify(payload) {
+  if (!notifyScript) return;
+  spawnSync(process.execPath, [notifyScript, JSON.stringify(payload)], {
+    cwd,
+    encoding: 'utf-8'
+  });
+}
+
+async function runOnce(file) {
+  const start = Date.now();
+  const lines = await readAll(file);
 
   let threadId;
 
   for (const line of lines) {
-    let parsed;
+    let j;
     try {
-      parsed = JSON.parse(line);
+      j = JSON.parse(line);
     } catch {
       continue;
     }
 
-    if (parsed.type === 'session_meta') {
-      threadId = parsed.payload?.id;
+    if (j.type === 'session_meta') {
+      threadId = j.payload?.id;
       continue;
     }
+
+    if (!isTaskComplete(j)) continue;
+
+    const ts = new Date(j.timestamp).getTime();
+    if (ts < start) continue;
+
+    const turnId = j.payload?.turn_id;
+    if (!threadId || !turnId) continue;
+
+    const payload = {
+      'thread-id': threadId,
+      'turn-id': turnId,
+      'input-messages': ['[notify-fallback] synthesized from rollout task_complete'],
+      'last-assistant-message': j.payload?.last_agent_message || '',
+      source: 'notify-fallback-watcher'
+    };
+
+    await invokeNotify(payload);
+    await logTurn(threadId, turnId, file);
+  }
+}
+
+async function runStream(file) {
+  const threadId = await extractThreadId(file);
+  if (!threadId) return;
+
+  let offset = 0;
+  try {
+    const s = await stat(file);
+    offset = s.size;
+  } catch {
+    offset = 0;
+  }
+
+  const timer = setInterval(async () => {
+    let s;
+    try {
+      s = await stat(file);
+    } catch {
+      return;
+    }
+
+    if (s.size <= offset) return;
+
+    const rs = createReadStream(file, {
+      start: offset,
+      end: s.size,
+      encoding: 'utf-8'
+    });
+
+    let buf = '';
+    for await (const chunk of rs) {
+      buf += chunk;
+    }
+
+    offset = s.size;
+
+    const lines = buf.split('\n').filter(Boolean);
+
+    for (const line of lines) {
+      let j;
+      try {
+        j = JSON.parse(line);
+      } catch {
+        continue;
+      }
+
+      if (!isTaskComplete(j)) continue;
+
+      const turnId = j.payload?.turn_id;
+      if (!turnId) continue;
+
+      const payload = {
+        'thread-id': threadId,
+        'turn-id': turnId,
+        'input-messages': ['[notify-fallback] synthesized from rollout task_complete'],
+        'last-assistant-message': j.payload?.last_agent_message || '',
+        source: 'notify-fallback-watcher'
+      };
+
+      await invokeNotify(payload);
+      await logTurn(threadId, turnId, file);
+    }
+  }, pollMs);
+
+  process.on('SIGTERM', () => {
+    clearInterval(timer);
+    process.exit(0);
+  });
+}
+
+async function main() {
+  const home = process.env.HOME || process.env.USERPROFILE;
+  const dir = sessionDir(home);
+  const file = await findRolloutFile(dir);
+  if (!file) return;
+
+  if (once) {
+    await runOnce(file);
+  } else {
+    await runStream(file);
+  }
+}
+
+main().catch(() => process.exit(1));    }
 
     if (parsed.type !== 'event_msg') continue;
     if (parsed.payload?.type !== 'task_complete') continue;
