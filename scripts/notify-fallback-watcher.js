@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 
-import { readFile, writeFile, mkdir, stat } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, stat, readdir } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 
 const args = process.argv.slice(2);
 
@@ -21,7 +20,7 @@ function hasFlag(name) {
 const once = hasFlag('--once');
 const cwd = getArg('--cwd', process.cwd());
 const notifyScript = getArg('--notify-script');
-const pollMs = Number(getArg('--poll-ms', '1000'));
+const pollMs = Number(getArg('--poll-ms', '100'));
 
 const today = new Date().toISOString().split('T')[0];
 const logPath = join(cwd, '.omx', 'logs', `turns-${today}.jsonl`);
@@ -54,16 +53,40 @@ function buildPayload(threadId, turnId, lastMessage) {
 }
 
 async function invokeNotifyHook(payload, filePath) {
-  const result = spawnSync(process.execPath, [notifyScript, JSON.stringify(payload)], {
+  spawnSync(process.execPath, [notifyScript, JSON.stringify(payload)], {
     cwd,
     encoding: 'utf-8',
   });
-  const ok = result.status === 0;
   await eventLog({
-    ...payload,
-    ok,
+    thread_id: payload['thread-id'],
+    turn_id: payload['turn-id'],
     file: filePath,
   });
+}
+
+async function getRolloutFile(sessionDir) {
+  try {
+    const files = await readdir(sessionDir);
+    const jsonl = files.filter(f => f.endsWith('.jsonl'));
+    if (!jsonl.length) return null;
+    return join(sessionDir, jsonl[0]);
+  } catch {
+    return null;
+  }
+}
+
+async function extractThreadId(filePath) {
+  const content = await readFile(filePath, 'utf-8').catch(() => '');
+  const lines = content.split('\n').filter(Boolean);
+  for (const line of lines) {
+    try {
+      const parsed = JSON.parse(line);
+      if (parsed.type === 'session_meta') {
+        return parsed.payload?.id;
+      }
+    } catch {}
+  }
+  return undefined;
 }
 
 async function processFileOnce(filePath) {
@@ -103,11 +126,84 @@ async function processFileOnce(filePath) {
 }
 
 async function streamFile(filePath) {
-  let threadId;
-  let offset = 0;
+  const threadId = await extractThreadId(filePath);
+  if (!threadId) return;
 
+  let offset = 0;
   try {
     const s = await stat(filePath);
+    offset = s.size;
+  } catch {
+    offset = 0;
+  }
+
+  const interval = setInterval(async () => {
+    let s;
+    try {
+      s = await stat(filePath);
+    } catch {
+      return;
+    }
+
+    if (s.size <= offset) return;
+
+    const stream = createReadStream(filePath, {
+      start: offset,
+      end: s.size,
+      encoding: 'utf-8',
+    });
+
+    let buffer = '';
+    for await (const chunk of stream) {
+      buffer += chunk;
+    }
+
+    offset = s.size;
+
+    const lines = buffer.split('\n').filter(Boolean);
+
+    for (const line of lines) {
+      let parsed;
+      try {
+        parsed = JSON.parse(line);
+      } catch {
+        continue;
+      }
+
+      if (parsed.type !== 'event_msg') continue;
+      if (parsed.payload?.type !== 'task_complete') continue;
+
+      const turnId = parsed.payload?.turn_id;
+      const lastMessage = parsed.payload?.last_agent_message;
+      if (!turnId) continue;
+
+      const payload = buildPayload(threadId, turnId, lastMessage);
+      await invokeNotifyHook(payload, filePath);
+    }
+  }, pollMs);
+
+  process.on('SIGTERM', () => {
+    clearInterval(interval);
+    process.exit(0);
+  });
+}
+
+async function main() {
+  const baseHome = process.env.HOME || process.env.USERPROFILE;
+  const sessionDir = todaySessionDir(baseHome);
+  const filePath = await getRolloutFile(sessionDir);
+  if (!filePath) return;
+
+  if (once) {
+    await processFileOnce(filePath);
+  } else {
+    await streamFile(filePath);
+  }
+}
+
+main().catch(async () => {
+  process.exit(1);
+});    const s = await stat(filePath);
     offset = s.size;
   } catch {
     offset = 0;
