@@ -1,113 +1,50 @@
 #!/usr/bin/env node
 
-import { existsSync } from 'fs';
-import { appendFile, mkdir, readFile, readdir, stat, writeFile } from 'fs/promises';
-import { spawnSync } from 'child_process';
-import { dirname, join, resolve } from 'path';
-import { homedir } from 'os';
+import { readFile, writeFile, mkdir, stat } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
-function argValue(name, fallback = '') {
-  const idx = process.argv.indexOf(name);
-  if (idx < 0 || idx + 1 >= process.argv.length) return fallback;
-  return process.argv[idx + 1];
+const args = process.argv.slice(2);
+
+function getArg(name, def) {
+  const i = args.indexOf(name);
+  if (i !== -1 && args[i + 1]) return args[i + 1];
+  return def;
 }
 
-const cwd = resolve(argValue('--cwd', process.cwd()));
-const notifyScript = resolve(argValue('--notify-script', join(cwd, 'scripts', 'notify-hook.js')));
-const pollMs = Number(argValue('--poll-ms', '700')) || 700;
-const runOnce = process.argv.includes('--once');
-const startedAt = Date.now();
-const fileWindowMs = runOnce ? 15000 : 30000;
-
-const omxDir = join(cwd, '.omx');
-const logsDir = join(omxDir, 'logs');
-const stateDir = join(omxDir, 'state');
-const statePath = join(stateDir, 'notify-fallback-state.json');
-const logPath = join(logsDir, `notify-fallback-${new Date().toISOString().split('T')[0]}.jsonl`);
-
-const fileState = new Map();
-const seenTurnKeys = new Set();
-let stopping = false;
-
-function safeString(v) {
-  return typeof v === 'string' ? v : '';
+function hasFlag(name) {
+  return args.includes(name);
 }
 
-function eventLog(event) {
-  return appendFile(
-    logPath,
-    `${JSON.stringify({ timestamp: new Date().toISOString(), ...event })}\n`
-  ).catch(() => {});
+const once = hasFlag('--once');
+const cwd = getArg('--cwd', process.cwd());
+const notifyScript = getArg('--notify-script');
+const pollMs = Number(getArg('--poll-ms', '1000'));
+
+const today = new Date().toISOString().split('T')[0];
+const logPath = join(cwd, '.omx', 'logs', `turns-${today}.jsonl`);
+
+async function eventLog(obj) {
+  await mkdir(dirname(logPath), { recursive: true });
+  await writeFile(logPath, JSON.stringify(obj) + '\n', { flag: 'a' });
 }
 
-function sessionDirs() {
+function todaySessionDir(baseHome) {
   const now = new Date();
-  const today = join(
-    homedir(),
+  return join(
+    baseHome,
     '.codex',
     'sessions',
     String(now.getUTCFullYear()),
     String(now.getUTCMonth() + 1).padStart(2, '0'),
     String(now.getUTCDate()).padStart(2, '0')
   );
-  const yesterdayDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const yesterday = join(
-    homedir(),
-    '.codex',
-    'sessions',
-    String(yesterdayDate.getUTCFullYear()),
-    String(yesterdayDate.getUTCMonth() + 1).padStart(2, '0'),
-    String(yesterdayDate.getUTCDate()).padStart(2, '0')
-  );
-  return Array.from(new Set([today, yesterday]));
 }
 
-async function readFirstLine(path) {
-  const content = await readFile(path, 'utf-8');
-  const idx = content.indexOf('\n');
-  return idx >= 0 ? content.slice(0, idx) : content;
-}
-
-function shouldTrackSessionMeta(line) {
-  let parsed;
-  try {
-    parsed = JSON.parse(line);
-  } catch {
-    return null;
-  }
-  if (!parsed || parsed.type !== 'session_meta' || !parsed.payload) return null;
-  const payload = parsed.payload;
-  if (safeString(payload.cwd) !== cwd) return null;
-  const threadId = safeString(payload.id);
-  return threadId || null;
-}
-
-async function discoverRolloutFiles() {
-  const discovered = [];
-  for (const dir of sessionDirs()) {
-    if (!existsSync(dir)) continue;
-    const names = await readdir(dir).catch(() => []);
-    for (const name of names) {
-      if (!name.startsWith('rollout-') || !name.endsWith('.jsonl')) continue;
-      const path = join(dir, name);
-      const st = await stat(path).catch(() => null);
-      if (!st) continue;
-      if (st.mtimeMs < startedAt - fileWindowMs) continue;
-      discovered.push(path);
-    }
-  }
-  discovered.sort();
-  return discovered;
-}
-
-function turnKey(threadId, turnId) {
-  return `${threadId || 'no-thread'}|${turnId || 'no-turn'}`;
-}
-
-function buildNotifyPayload(threadId, turnId, lastMessage) {
+function buildPayload(threadId, turnId, lastMessage) {
   return {
-    type: 'agent-turn-complete',
-    cwd,
     'thread-id': threadId,
     'turn-id': turnId,
     'input-messages': ['[notify-fallback] synthesized from rollout task_complete'],
@@ -123,313 +60,147 @@ async function invokeNotifyHook(payload, filePath) {
   });
   const ok = result.status === 0;
   await eventLog({
-    type: 'fallback_notify',
+    ...payload,
     ok,
-    thread_id: payload['thread-id'],
-    turn_id: payload['turn-id'],
     file: filePath,
-    reason: ok ? 'sent' : 'notify_hook_failed',
-    error: ok ? undefined : (result.stderr || result.stdout || '').trim().slice(0, 240),
   });
 }
 
-async function processLine(meta, line, filePath) {
-  let parsed;
-  try {
-    parsed = JSON.parse(line);
-  } catch {
-    return;
-  }
+async function processFileOnce(filePath) {
+  const startTime = Date.now();
+  const content = await readFile(filePath, 'utf-8').catch(() => '');
+  const lines = content.split('\n').filter(Boolean);
 
-  if (!parsed || parsed.type !== 'event_msg' || !parsed.payload) return;
-  if (parsed.payload.type !== 'task_complete') return;
+  let threadId;
 
-  const turnId = safeString(parsed.payload.turn_id);
-  if (!turnId) return;
-
-  const evtTs = Date.parse(safeString(parsed.timestamp));
-  if (Number.isFinite(evtTs) && evtTs < startedAt - 3000) return;
-
-  const key = turnKey(meta.threadId, turnId);
-  if (seenTurnKeys.has(key)) return;
-  seenTurnKeys.add(key);
-
-  const payload = buildNotifyPayload(
-    meta.threadId,
-    turnId,
-    safeString(parsed.payload.last_agent_message)
-  );
-  await invokeNotifyHook(payload, filePath);
-}
-
-async function ensureTrackedFiles() {
-  const files = await discoverRolloutFiles();
-  for (const path of files) {
-    if (fileState.has(path)) continue;
-    const line = await readFirstLine(path).catch(() => '');
-    const threadId = shouldTrackSessionMeta(line);
-    if (!threadId) continue;
-
-    const st = await stat(path).catch(() => ({ size: 0 }));
-    const size = st.size || 0;
-
-    const offset = runOnce ? 0 : size;
-
-    fileState.set(path, {
-      threadId,
-      offset,
-      partial: '',
-    });
-  }
-}
-
-async function pollFiles() {
-  for (const [path, meta] of fileState.entries()) {
-    const st = await stat(path).catch(() => null);
-    if (!st) continue;
-
-    const currentSize = st.size || 0;
-    if (currentSize <= meta.offset) continue;
-
-    const content = await readFile(path, 'utf-8').catch(() => '');
-    if (!content) {
-      meta.offset = currentSize;
+  for (const line of lines) {
+    let parsed;
+    try {
+      parsed = JSON.parse(line);
+    } catch {
       continue;
     }
 
-    const delta = content.slice(meta.offset);
-    meta.offset = currentSize;
-
-    const merged = meta.partial + delta;
-    const lines = merged.split('\n');
-    meta.partial = lines.pop() || '';
-
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      await processLine(meta, line, path);
+    if (parsed.type === 'session_meta') {
+      threadId = parsed.payload?.id;
+      continue;
     }
+
+    if (parsed.type !== 'event_msg') continue;
+    if (parsed.payload?.type !== 'task_complete') continue;
+
+    const ts = new Date(parsed.timestamp).getTime();
+    if (ts < startTime) continue;
+
+    const turnId = parsed.payload?.turn_id;
+    const lastMessage = parsed.payload?.last_agent_message;
+
+    if (!threadId || !turnId) continue;
+
+    const payload = buildPayload(threadId, turnId, lastMessage);
+    await invokeNotifyHook(payload, filePath);
   }
 }
 
-async function writeState() {
-  await mkdir(stateDir, { recursive: true }).catch(() => {});
-  const state = {
-    pid: process.pid,
-    started_at: new Date(startedAt).toISOString(),
-    cwd,
-    notify_script: notifyScript,
-    poll_ms: pollMs,
-    tracked_files: fileState.size,
-    seen_turns: seenTurnKeys.size,
-  };
-  await writeFile(statePath, JSON.stringify(state, null, 2)).catch(() => {});
-}
+async function streamFile(filePath) {
+  let threadId;
+  let offset = 0;
 
-async function tick() {
-  if (stopping) return;
-  await ensureTrackedFiles();
-  await pollFiles();
-  await writeState();
-  setTimeout(tick, pollMs);
-}
-
-function shutdown(signal) {
-  stopping = true;
-  eventLog({ type: 'watcher_stop', signal }).finally(() => process.exit(0));
-}
-
-async function main() {
-  await mkdir(logsDir, { recursive: true }).catch(() => {});
-  await mkdir(stateDir, { recursive: true }).catch(() => {});
-  if (!existsSync(notifyScript)) {
-    await eventLog({
-      type: 'watcher_error',
-      reason: 'notify_script_missing',
-      notify_script: notifyScript,
-    });
-    process.exit(1);
-  }
-
-  await eventLog({
-    type: 'watcher_start',
-    cwd,
-    notify_script: notifyScript,
-    poll_ms: pollMs,
-    once: runOnce,
-  });
-
-  process.on('SIGINT', () => shutdown('SIGINT'));
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGHUP', () => shutdown('SIGHUP'));
-
-  if (runOnce) {
-    await ensureTrackedFiles();
-    await pollFiles();
-    await writeState();
-    await eventLog({ type: 'watcher_once_complete', seen_turns: seenTurnKeys.size });
-    process.exit(0);
-  }
-
-  await ensureTrackedFiles();
-  await tick();
-}
-
-main().catch(async (err) => {
-  await mkdir(dirname(logPath), { recursive: true }).catch(() => {});
-  await eventLog({
-    type: 'watcher_error',
-    reason: 'fatal',
-    error: err instanceof Error ? err.message : safeString(err),
-  });
-  process.exit(1);
-});    'input-messages': ['[notify-fallback] synthesized from rollout task_complete'],
-    'last-assistant-message': lastMessage || '',
-    source: 'notify-fallback-watcher',
-  };
-}
-
-async function invokeNotifyHook(payload, filePath) {
-  const result = spawnSync(process.execPath, [notifyScript, JSON.stringify(payload)], {
-    cwd,
-    encoding: 'utf-8',
-  });
-  const ok = result.status === 0;
-  await eventLog({
-    type: 'fallback_notify',
-    ok,
-    thread_id: payload['thread-id'],
-    turn_id: payload['turn-id'],
-    file: filePath,
-    reason: ok ? 'sent' : 'notify_hook_failed',
-    error: ok ? undefined : (result.stderr || result.stdout || '').trim().slice(0, 240),
-  });
-}
-
-async function processLine(meta, line, filePath) {
-  let parsed;
   try {
-    parsed = JSON.parse(line);
+    const s = await stat(filePath);
+    offset = s.size;
   } catch {
-    return;
+    offset = 0;
   }
 
-  if (!parsed || parsed.type !== 'event_msg' || !parsed.payload) return;
-  if (parsed.payload.type !== 'task_complete') return;
-
-  const turnId = safeString(parsed.payload.turn_id);
-  if (!turnId) return;
-
-  const evtTs = Date.parse(safeString(parsed.timestamp));
-  if (Number.isFinite(evtTs) && evtTs < startedAt - 3000) return;
-
-  const key = turnKey(meta.threadId, turnId);
-  if (seenTurnKeys.has(key)) return;
-  seenTurnKeys.add(key);
-
-  const payload = buildNotifyPayload(
-    meta.threadId,
-    turnId,
-    safeString(parsed.payload.last_agent_message)
-  );
-  await invokeNotifyHook(payload, filePath);
-}
-
-async function ensureTrackedFiles() {
-  const files = await discoverRolloutFiles();
-  for (const path of files) {
-    if (fileState.has(path)) continue;
-    const line = await readFirstLine(path).catch(() => '');
-    const threadId = shouldTrackSessionMeta(line);
-    if (!threadId) continue;
-    const size = (await stat(path).catch(() => ({ size: 0 }))).size || 0;
-    // In streaming mode, tail from current EOF to avoid replaying old events.
-    // In one-shot mode, read from start to catch just-finished turns.
-    const offset = runOnce ? 0 : size;
-    fileState.set(path, { threadId, offset, size, partial: '' });
-  }
-}
-
-async function pollFiles() {
-  for (const [path, meta] of fileState.entries()) {
-    const currentSize = (await stat(path).catch(() => ({ size: 0 }))).size || 0;
-    if (currentSize <= meta.offset) continue;
-    const content = await readFile(path, 'utf-8').catch(() => '');
-    if (!content) continue;
-    const delta = content.slice(meta.offset);
-    meta.offset = currentSize;
-    const merged = meta.partial + delta;
-    const lines = merged.split('\n');
-    meta.partial = lines.pop() || '';
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      await processLine(meta, line, path);
+  const interval = setInterval(async () => {
+    let s;
+    try {
+      s = await stat(filePath);
+    } catch {
+      return;
     }
-  }
-}
 
-async function writeState() {
-  await mkdir(stateDir, { recursive: true }).catch(() => {});
-  const state = {
-    pid: process.pid,
-    started_at: new Date(startedAt).toISOString(),
-    cwd,
-    notify_script: notifyScript,
-    poll_ms: pollMs,
-    tracked_files: fileState.size,
-    seen_turns: seenTurnKeys.size,
-  };
-  await writeFile(statePath, JSON.stringify(state, null, 2)).catch(() => {});
-}
+    if (s.size <= offset) return;
 
-async function tick() {
-  if (stopping) return;
-  await ensureTrackedFiles();
-  await pollFiles();
-  await writeState();
-  setTimeout(tick, pollMs);
-}
+    const stream = createReadStream(filePath, {
+      start: offset,
+      end: s.size,
+      encoding: 'utf-8',
+    });
 
-function shutdown(signal) {
-  stopping = true;
-  eventLog({ type: 'watcher_stop', signal }).finally(() => process.exit(0));
+    let buffer = '';
+    for await (const chunk of stream) {
+      buffer += chunk;
+    }
+
+    offset = s.size;
+
+    const lines = buffer.split('\n').filter(Boolean);
+
+    for (const line of lines) {
+      let parsed;
+      try {
+        parsed = JSON.parse(line);
+      } catch {
+        continue;
+      }
+
+      if (parsed.type === 'session_meta') {
+        threadId = parsed.payload?.id;
+        continue;
+      }
+
+      if (parsed.type !== 'event_msg') continue;
+      if (parsed.payload?.type !== 'task_complete') continue;
+
+      const turnId = parsed.payload?.turn_id;
+      const lastMessage = parsed.payload?.last_agent_message;
+
+      if (!threadId || !turnId) continue;
+
+      const payload = buildPayload(threadId, turnId, lastMessage);
+      await invokeNotifyHook(payload, filePath);
+    }
+  }, pollMs);
+
+  process.on('SIGTERM', () => {
+    clearInterval(interval);
+    process.exit(0);
+  });
 }
 
 async function main() {
-  await mkdir(logsDir, { recursive: true }).catch(() => {});
-  await mkdir(stateDir, { recursive: true }).catch(() => {});
-  if (!existsSync(notifyScript)) {
-    await eventLog({ type: 'watcher_error', reason: 'notify_script_missing', notify_script: notifyScript });
-    process.exit(1);
+  const baseHome = process.env.HOME || process.env.USERPROFILE;
+  const sessionDir = todaySessionDir(baseHome);
+
+  const files = await readFileDir(sessionDir);
+  if (!files.length) return;
+
+  const filePath = join(sessionDir, files[0]);
+
+  if (once) {
+    await processFileOnce(filePath);
+  } else {
+    await streamFile(filePath);
   }
+}
 
-  await eventLog({
-    type: 'watcher_start',
-    cwd,
-    notify_script: notifyScript,
-    poll_ms: pollMs,
-    once: runOnce,
-  });
-  process.on('SIGINT', () => shutdown('SIGINT'));
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGHUP', () => shutdown('SIGHUP'));
-
-  if (runOnce) {
-    await ensureTrackedFiles();
-    await pollFiles();
-    await writeState();
-    await eventLog({ type: 'watcher_once_complete', seen_turns: seenTurnKeys.size });
-    process.exit(0);
+async function readFileDir(dir) {
+  try {
+    const { readdir } = await import('node:fs/promises');
+    const files = await readdir(dir);
+    return files.filter(f => f.endsWith('.jsonl'));
+  } catch {
+    return [];
   }
-
-  await tick();
 }
 
 main().catch(async (err) => {
   await mkdir(dirname(logPath), { recursive: true }).catch(() => {});
   await eventLog({
     type: 'watcher_error',
-    reason: 'fatal',
-    error: err instanceof Error ? err.message : safeString(err),
+    error: err instanceof Error ? err.message : String(err),
   });
   process.exit(1);
 });
